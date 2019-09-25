@@ -30,6 +30,6 @@ The project currently consist in a simple script allowing to specify project's i
 
 Currently, the only supported authentication method is using **Personal access tokens**.
 
-Please refer to [Gitlab API documentation]: https://docs.gitlab.com/ee/api/#personal-access-tokens in order to configure acces to private projects.
+Please refer to [Gitlab API documentation](https://docs.gitlab.com/ee/api/#personal-access-tokens) in order to configure acces to private projects.
 
 ## More to come...
