@@ -11,7 +11,7 @@ This project is currently issuing HTTP GET requests to gitlab API in order to re
 The project currently consist in a simple script allowing to specify project's id to get associated issues.
 
 
-    Usage: ./retrieve_content.sh --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-i|--id PROJECT_ID] [-o|--output OUTPUT] [-u|--url URL] 
+    Usage: ./retrieve_content.sh [--id PROJECT_ID] [-h|--help] [-a|--auth KEY] [-b|--browse] [-i|--id PROJECT_ID] [-o|--output OUTPUT] [-u|--url URL]
  		-h|--help                       : Print help.
  		-a|--auth                       : Authentication key 
  		-b|--browse                     : Open JSON content with default web browser. 

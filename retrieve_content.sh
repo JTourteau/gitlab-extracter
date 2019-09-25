@@ -13,7 +13,7 @@ DESCRIPTION="Retrieve gitlab project's content as JSON file. \n \
              	\n \
              	NOTE : 'curl' package has to be installed."
 GITLAB_API=api/v4/projects
-USAGE="Usage: ${0} --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-i|--id PROJECT_ID] [-o|--output OUTPUT] [-u|--url URL] \n \
+USAGE="Usage: ${0} [--id PROJECT_ID] [-h|--help] [-a|--auth KEY] [-b|--browse] [-i|--id PROJECT_ID] [-o|--output OUTPUT] [-u|--url URL] \n \
 \t\t-h|--help                       : Print help.\n \
 \t\t-a|--auth                       : Authentication key \n \
 \t\t-b|--browse                     : Open JSON content with default web browser. \n \
