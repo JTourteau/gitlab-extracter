@@ -68,18 +68,21 @@ ping -c1 -W1 $(sed 's:^.*\://\(.*$\):\1:' <<< ${URL}) > /dev/null 2>&1 && echo "
 ########################
 step "Retrieve project's issues"
 TMP_FILE=$(mktemp /tmp/gitlab-extracter.XXXXXX.json)
-curl -s ${URL}/${GITLAB_API}/${ID}/issues${AUTH} > ${TMP_FILE} && echo "OK" || fail "Error : Unable to retrieve project's content"
+HTTP_RETURN_CODE=$(curl -s -w "%{http_code}" -o ${TMP_FILE} ${URL}/${GITLAB_API}/${ID}/issues${AUTH})
 
-########################
-### Retrieve content ###
-########################
-[ -z "${OUTPUT}" ] || { step "Saving JSON to ${OUTPUT}"; cp ${TMP_FILE} ${OUTPUT} && echo "OK" || echo "Unable to save file to ${OUTPUT}"; }
+grep -E '2[0-9]{2}' >/dev/null <<< ${HTTP_RETURN_CODE} && echo "OK" || echo "Error : Server returned HTTP status code ${HTTP_RETURN_CODE}"
+
+######################
+### Save JSON file ###
+######################
+[ -z "${OUTPUT}" ] || { step "Saving JSON to ${OUTPUT}"; cp ${TMP_FILE} ${OUTPUT} && echo "OK" || echo "Error : Unable to save file to ${OUTPUT}"; }
 
 #####################
 ### Print content ###
 #####################
 [ -z "${OUTPUT}" ] && BROWSE_FILE=${TMP_FILE} || BROWSE_FILE=${OUTPUT}
 ${BROWSE} && { sensible-browser ${BROWSE_FILE} || fail "Error : Unable to open file with default web browser"; } || [ -z "${OUTPUT}" ] && cat ${BROWSE_FILE}
+echo
 
 exit 0
 
