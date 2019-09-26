@@ -7,6 +7,7 @@ KEY=
 OUTPUT=
 URL=https://gitlab.com
 NO_PROXY=false
+CSV_FILE=
 BROWSE_FILE=
 DESCRIPTION="Retrieve gitlab project's content as JSON file. \n \
              	The content is either stored in a file or printed on standard output. \n \
@@ -14,16 +15,18 @@ DESCRIPTION="Retrieve gitlab project's content as JSON file. \n \
              	\n \
              	NOTE : 'curl' package has to be installed."
 GITLAB_API=api/v4/projects
-USAGE="Usage: ${0} [--id PROJECT_ID] [-h|--help] [-a|--auth KEY] [-b|--browse] [-i|--id PROJECT_ID] [-o|--output OUTPUT] [-u|--url URL] \n \
+USAGE="Usage: ${0} --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o|--output OUTPUT.json] [-u|--url URL] [--no-proxy] [--export-csv CSV_FILE.csv]\n \
 \t\t-h|--help                       : Print help.\n \
 \t\t-a|--auth                       : Authentication key \n \
 \t\t-b|--browse                     : Open JSON content with default web browser. \n \
 \t\t-i|--id                         : Gitlab project id. \n \
 \t\t-o|--output                     : Save JSON content into given file. \n \
 \t\t-u|--url                        : Gitlab server URL ('${URL}' as default value).\n \
-\t\t--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.\n\n"
+\t\t--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.\n \
+\t\t--export-csv                    : Convert JSON to CSV file which includes main fields.\n \
+\n"
 
-DEPENDENCIES="curl"
+DEPENDENCIES="curl jq"
 
 fail()
 {
@@ -67,9 +70,10 @@ while [ ${#} -ne 0 ]; do
 		-a|--auth)                  shift; KEY=${1};;
 		-b|--browse)                shift; BROWSE=true;;
 		-i|--id)                    shift; ID=${1};;
-		-o|--output)                shift; OUTPUT=${1}.json;;
+		-o|--output)                shift; OUTPUT=${1};;
 		-u|--url)                   shift; URL=${1};;
 		--no-proxy)                 shift; NO_PROXY=true;;
+		--export-csv)               shift; CSV_FILE=${1};;
 		*)                          printf "${USAGE}"; exit 1;;
 	esac
 	shift
@@ -99,6 +103,11 @@ grep -E '2[0-9]{2}' >/dev/null <<< ${HTTP_RETURN_CODE} && echo "OK" || echo "Err
 ### Save JSON file ###
 ######################
 [ -z "${OUTPUT}" ] || { step "Saving JSON to ${OUTPUT}"; cp ${TMP_FILE} ${OUTPUT} && echo "OK" || echo "Error : Unable to save file to ${OUTPUT}"; }
+
+#######################
+### Export CSV file ###
+#######################
+[ -z "${CSV_FILE}" ] || { step "Export CSV file to ${CSV_FILE}"; jq -r 'keys[] as $k | "\($k),\(.[$k].title),\(.[$k].state),\(.[$k].milestone.title),\(.[$k].assignee.name),\(.[$k].author.name),\(.[$k].created_at),\(.[$k].due_date),\"\(.[$k].description)\""' ${TMP_FILE} > ${CSV_FILE} && echo "OK" || echo "Error : Unable to convert output to CSV file"; }
 
 #####################
 ### Print content ###
