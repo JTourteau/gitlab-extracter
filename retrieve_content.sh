@@ -43,22 +43,6 @@ step()
 	seq -s'#' 0 ${len} | tr -d '[:digit:]'
 }
 
-##########################
-### Check dependencies ###
-##########################
-step "### Check dependencies ###"
-dpkg -s ${DEPENDENCIES} > /dev/null 2>&1 ||
-{
-	echo "Missing following packages :"
-	echo -n "    "
-	for dep in ${DEPENDENCIES}; do
-		dpkg -s "${dep}" > /dev/null 2>&1 || echo -n "${dep} "
-	done
-	echo
-	echo "Install them running 'apt-get install' and retry"
-	exit 1
-}
-
 #######################
 ### Check arguments ###
 #######################
@@ -83,6 +67,22 @@ done
 [ -z "${KEY}" ] || AUTH=?private_token=${KEY}
 
 ${NO_PROXY} && { echo "Proxies are disabled"; unset {http,https,HTTP,HTTPS}_{proxy,PROXY}; }
+
+##########################
+### Check dependencies ###
+##########################
+step "### Check dependencies ###"
+dpkg -s ${DEPENDENCIES} > /dev/null 2>&1 ||
+{
+	echo "Missing following packages :"
+	echo -n "    "
+	for dep in ${DEPENDENCIES}; do
+		dpkg -s "${dep}" > /dev/null 2>&1 || echo -n "${dep} "
+	done
+	echo
+	echo "Install them running 'apt-get install' and retry"
+	exit 1
+}
 
 ###################################
 ### Check that URL is reachable ###
