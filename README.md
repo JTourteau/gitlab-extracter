@@ -11,20 +11,23 @@ This project is currently issuing HTTP GET requests to gitlab API in order to re
 The project currently consist in a simple script allowing to specify project's id to get associated issues.
 
 
-    Usage: ./retrieve_content.sh [--id PROJECT_ID] [-h|--help] [-a|--auth KEY] [-b|--browse] [-i|--id PROJECT_ID] [-o|--output OUTPUT] [-u|--url URL]
- 		-h|--help                       : Print help.
- 		-a|--auth                       : Authentication key 
- 		-b|--browse                     : Open JSON content with default web browser. 
- 		-i|--id                         : Gitlab project id. 
- 		-o|--output                     : Save JSON content into given file. 
- 		-u|--url                        : Gitlab server URL ('https://gitlab.com' as default value).
+    Usage: ./retrieve_content.sh --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o|--output OUTPUT.json] [-u|--url URL] [--no-proxy] [--export-csv CSV_FILE.csv]
+    		-h|--help                       : Print help.
+    		-a|--auth                       : Authentication key 
+    		-b|--browse                     : Open JSON content with default web browser. 
+    		-i|--id                         : Gitlab project id. 
+    		-o|--output                     : Save JSON content into given file. 
+    		-u|--url                        : Gitlab server URL ('https://gitlab.com' as default value).
+    		--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.
+    		--export-csv                    : Convert JSON to CSV file which includes main fields.
 
 
     Retrieve gitlab project's content as JSON file. 
               	The content is either stored in a file or printed on standard output. 
               	The JSON content can also be oppened into a web browser.
-             	
+              	
               	NOTE : 'curl' package has to be installed.
+
 
 ## Authentication
 
