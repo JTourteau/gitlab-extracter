@@ -23,6 +23,8 @@ USAGE="Usage: ${0} [--id PROJECT_ID] [-h|--help] [-a|--auth KEY] [-b|--browse] [
 \t\t-u|--url                        : Gitlab server URL ('${URL}' as default value).\n \
 \t\t--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.\n\n"
 
+DEPENDENCIES="curl"
+
 fail()
 {
 	echo "ERROR: $*" >&2
@@ -36,6 +38,22 @@ step()
 	seq -s'#' 0 ${len} | tr -d '[:digit:]'
 	echo "$*"
 	seq -s'#' 0 ${len} | tr -d '[:digit:]'
+}
+
+##########################
+### Check dependencies ###
+##########################
+step "### Check dependencies ###"
+dpkg -s ${DEPENDENCIES} > /dev/null 2>&1 ||
+{
+	echo "Missing following packages :"
+	echo -n "    "
+	for dep in ${DEPENDENCIES}; do
+		dpkg -s "${dep}" > /dev/null 2>&1 || echo -n "${dep} "
+	done
+	echo
+	echo "Install them running 'apt-get install' and retry"
+	exit 1
 }
 
 #######################
