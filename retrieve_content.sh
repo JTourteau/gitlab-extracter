@@ -6,6 +6,7 @@ ID=
 KEY=
 OUTPUT=
 URL=https://gitlab.com
+NO_PROXY=false
 BROWSE_FILE=
 DESCRIPTION="Retrieve gitlab project's content as JSON file. \n \
              	The content is either stored in a file or printed on standard output. \n \
@@ -19,7 +20,8 @@ USAGE="Usage: ${0} [--id PROJECT_ID] [-h|--help] [-a|--auth KEY] [-b|--browse] [
 \t\t-b|--browse                     : Open JSON content with default web browser. \n \
 \t\t-i|--id                         : Gitlab project id. \n \
 \t\t-o|--output                     : Save JSON content into given file. \n \
-\t\t-u|--url                        : Gitlab server URL ('${URL}' as default value).\n\n"
+\t\t-u|--url                        : Gitlab server URL ('${URL}' as default value).\n \
+\t\t--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.\n\n"
 
 fail()
 {
@@ -49,6 +51,7 @@ while [ ${#} -ne 0 ]; do
 		-i|--id)                    shift; ID=${1};;
 		-o|--output)                shift; OUTPUT=${1}.json;;
 		-u|--url)                   shift; URL=${1};;
+		--no-proxy)                 shift; NO_PROXY=true;;
 		*)                          printf "${USAGE}"; exit 1;;
 	esac
 	shift
@@ -56,6 +59,8 @@ done
 
 [ -z "${ID}" ] && fail "You shall specify gitlab project id."
 [ -z "${KEY}" ] || AUTH=?private_token=${KEY}
+
+${NO_PROXY} && { echo "Proxies are disabled"; unset {http,https,HTTP,HTTPS}_{proxy,PROXY}; }
 
 ###################################
 ### Check that URL is reachable ###
