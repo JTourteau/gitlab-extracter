@@ -144,6 +144,12 @@ echo "Retrieved ${entry_num} entries on ${page_total} pages"
 	#     | select(.labels | index(\"Bug\"))          ==> Keep only elements containing "Bug" into 'labels' list
 
 	jq -r ".[]
+	      | select(.labels | index(\"Mantis\") | not)
+	      | select(.labels | index(\"Interne\") | not)
+	      | select(.labels | index(\"Récit Utilisateur\") | not)
+	      | select(.labels | index(\"À valider\") | not)
+	      | select(.labels | index(\"À surveiller\") | not)
+	      | select(.labels | index(\"Bug\"))
 	      | \"\(.iid)${CSV_SEPARATOR}\(.title)${CSV_SEPARATOR}\(.state)${CSV_SEPARATOR}\(.milestone.title)${CSV_SEPARATOR}\(.labels)${CSV_SEPARATOR}\(.assignee.name)${CSV_SEPARATOR}\(.author.name)${CSV_SEPARATOR}\(.created_at)${CSV_SEPARATOR}\\\"\(.description)\\\"\"" ${CONTENT_FILE} >> ${CSV_FILE} && echo "OK" || echo "Error : Unable to convert output to CSV file"
 
 	sed -i 's/@@QUOTES@@/\\""/g' ${CSV_FILE}

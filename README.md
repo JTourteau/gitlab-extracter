@@ -36,3 +36,9 @@ Currently, the only supported authentication method is using **Personal access t
 Please refer to [Gitlab API documentation](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) in order to configure acces to private projects.
 
 ## More to come...
+
+ - Issue filtering
+ - curl improvements (use 'curl --header' for HTTP header instead of giving GET parameters on URL)
+ - OAuth2 authentication
+ - Session cookie identification
+ - handle HTTP return codes
