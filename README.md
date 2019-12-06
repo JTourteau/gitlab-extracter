@@ -6,12 +6,13 @@ The aim of this project is to offer a simple interface to extract data from a gi
 
 This project is currently issuing HTTP GET requests to gitlab API in order to retrieve project's content.
 
-## Content
+## Retrieving content as JSON
 
-The project currently consist in a simple script allowing to specify project's id to get associated issues.
+The script used to retrieve Gitlab project's issues is **gitlab-extracter**
 
+This script retrieve Gitlab project issues from its from project's id.
 
-    Usage: ./retrieve_content.sh --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o|--output OUTPUT.json] [-u|--url URL] [--no-proxy] [--export-csv CSV_FILE.csv]
+    Usage: ./gitlab-extracter --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o|--output OUTPUT.json] [-u|--url URL] [--no-proxy]
     		-h|--help                       : Print help.
     		-a|--auth                       : Authentication key 
     		-b|--browse                     : Open JSON content with default web browser. 
@@ -19,7 +20,6 @@ The project currently consist in a simple script allowing to specify project's i
     		-o|--output                     : Save JSON content into given file. 
     		-u|--url                        : Gitlab server URL ('https://gitlab.com' as default value).
     		--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.
-    		--export-csv                    : Convert JSON to CSV file which includes main fields.
 
 
     Retrieve gitlab project's content as JSON file. 
@@ -29,7 +29,7 @@ The project currently consist in a simple script allowing to specify project's i
               	NOTE : 'curl' package has to be installed.
 
 
-## Authentication
+### Authentication
 
 Currently, the only supported authentication method is using **Personal access tokens**.
 
