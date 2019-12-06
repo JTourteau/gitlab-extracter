@@ -63,7 +63,7 @@ DEPENDENCIES="curl"
 
 while [ ${#} -ne 0 ]; do
 	case "${1}" in
-		-h|--help)                  printf "%b\n%b\n" "${USAGE}" "${DESCRIPTION}"; exit 0;;
+		-h|--help)                  log "${USAGE}${DESCRIPTION}"; exit 0;;
 		-a|--auth)                  shift; KEY=${1};;
 		-b|--browse)                BROWSE=true;;
 		-i|--id)                    shift; ID=${1};;
@@ -71,7 +71,7 @@ while [ ${#} -ne 0 ]; do
 		-u|--url)                   shift; URL=${1};;
 		-v|--verbose)               VERBOSE=true;;
 		--no-proxy)                 NO_PROXY=true;;
-		*)                          printf "${USAGE}"; exit 1;;
+		*)                          log "${USAGE}"; exit 1;;
 	esac
 	shift
 done

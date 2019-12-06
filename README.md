@@ -39,12 +39,17 @@ Please refer to [Gitlab API documentation](https://docs.gitlab.com/ee/user/profi
 
 The script used to convert JSON project content to a CSV file is **json2csv**.
 
+    ###################
+    ### Description ###
+    ###################
     Convert Gitlab JSON issues to a CSV file using 'jq'.
     	Issues can be filtered either by using predefined filters or by composing it with available options.
     	The output pattern can also be chosen from the predefined ones or composed with options.
 
     	NOTE : 'jq' Debian package has to be installed.
-
+    #############
+    ### Usage ###
+    #############
     Usage: ./json2csv [-h|--help] [OPTIONS]
     Options:
     	-h|--help                       : Print this help.
@@ -58,7 +63,9 @@ The script used to convert JSON project content to a CSV file is **json2csv**.
     	--format                        : Attributes are printed following the given format.
     	--print-attributes              : Print available attributes for printing and filtering.
     	--print-models                  : Print available models for printing.
-
+    #####################
+    ### Output format ###
+    #####################
     Composing models with predefined attributes: (--model <MODEL>)
 
     	Output format follows the order of given attributes and uses the CSV separator.
@@ -90,12 +97,16 @@ The script used to convert JSON project content to a CSV file is **json2csv**.
     With given format: (--format <FORMAT>)
 
     	Selected attributes are printed following the given format, the CSV separator is not used.
-
+    ###############
+    ### Filters ###
+    ###############
     Filters' attributes shall be choosen from predefined attributes.
 
     Filter format:
     	attribute=value   ==>  Attribute is equal to value
     	attribute[value]  ==>  Attribute contains value (for lists)
+
+
 
 ## More to come...
 
