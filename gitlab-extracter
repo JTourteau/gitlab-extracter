@@ -1,5 +1,32 @@
 #!/bin/bash
 
+########################
+### Define functions ###
+########################
+
+log()
+{
+	echo -e "$*" >&2
+}
+
+fail()
+{
+	log "ERROR: $*"
+	exit 1
+}
+
+step()
+{
+	len=$(echo "$*" | awk '{print length}')
+	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
+	log "$*"
+	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
+}
+
+########################
+### Define variables ###
+########################
+
 AUTH=
 BROWSE=false
 ID=
@@ -28,25 +55,6 @@ USAGE="Usage: ${0} --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o
 \n"
 
 DEPENDENCIES="curl"
-
-log()
-{
-	echo -e "$*" >&2
-}
-
-fail()
-{
-	log "ERROR: $*"
-	exit 1
-}
-
-step()
-{
-	len=$(echo "$*" | awk '{print length}')
-	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
-	log "$*"
-	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
-}
 
 #######################
 ### Check arguments ###
