@@ -1,0 +1,293 @@
+#!/bin/bash
+
+########################
+### Define functions ###
+########################
+
+log()
+{
+	echo -e "$*" >&2
+}
+
+fail()
+{
+	log "ERROR: $*"
+	exit 1
+}
+
+step()
+{
+	len=$(echo "$*" | awk '{print length}')
+	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
+	log "$*"
+	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
+}
+
+########################
+### Define variables ###
+########################
+
+CSV_SEPARATOR=";"
+INPUT=
+OUTPUT=
+NO_HEADER=false
+FILTER=
+IS_FILTER=false
+FILTER_OUT=
+IS_FILTER_OUT=false
+PRINT_ATTRS=false
+PRINT_MODELS=false
+PREDEFINED_MODEL_USED=false
+PREDEFINED_MODEL=
+COMPOSED_MODEL_USED=false
+COMPOSED_MODEL=
+OUTPUT_FORMAT_USED=false
+OUTPUT_FORMAT=
+DESCRIPTION="$(step '### Description ###')\n\
+Convert Gitlab JSON issues to a CSV file using 'jq'.\n\
+\tIssues can be filtered either by using predefined filters or by composing it with available options.\n\
+\tThe output pattern can also be chosen from the predefined ones or composed with options.\n\
+\n\
+\tNOTE : 'jq' Debian package has to be installed.\n"
+MODEL_DESC="$(step '### Output format ###')\n\
+Composing models with predefined attributes: (--model <MODEL>)\n\
+\n\
+\tOutput format follows the order of given attributes and uses the CSV separator.\n\
+\n\
+\t - assigne                   The person who has been assigned to the issue.\n\
+\t - author                    The issue's author.\n\
+\t - creation-date             Issue's creation date.\n\
+\t - description               Issue's description.\n\
+\t - due-date                  Issue's end date.\n\
+\t - id                        Issue's id.\n\
+\t - labels                    Issue's labels.\n\
+\t - milestone                 Issue's milestone.\n\
+\t - state                     Issue's current state.\n\
+\t - title                     Issue's title.\n\
+\n\
+\tMODEL format: --model attr1,attr2,attr3
+\n\
+Predefined models: (--model-MODELNAME)\n\
+\n\
+\tPredefined models use CSV separator between attributes.\n\
+\n\
+\t --model-title               Print only title
+\t --model-id-title            Print id and title
+\t --model-id-title-labels     Print id, title and labels
+\t --model-title-desc          Print title and description
+\t --model-id-title-desc       Print id, title and description
+\t --model-all                 Print all attributes in the following order: id, title, state, milestone, labels, assigne, author, creation-date and description
+\n\
+With given format: (--format <FORMAT>)\n\
+\n\
+\tSelected attributes are printed following the given format, the CSV separator is not used."
+FILTER_DESC="$(step '### Filters ###')\n\
+Filters' attributes shall be choosen from predefined attributes.\n\
+\n\
+Filter format:
+\tattribute=value   ==>  Attribute is equal to value\n\
+\tattribute[value]  ==>  Attribute contains value (for lists)\n\
+"
+USAGE="$(step '### Usage ###')\n\
+Usage: ${0} [-h|--help] [OPTIONS]\n\
+Options:\n\
+\t-h|--help                       : Print this help.\n\
+\t-i|--input                      : Input JSON file. If not specified, JSON is read from stdin.\n\
+\t-o|--output                     : Output CSV file. If not specified, CSV is printed on stdout.\n\
+\t-s|--csv-separator              : The character separator to be used in the CSV output file. If not specified, ';' is used.\n\
+\t--no-header                     : Do not print CSV header.\n\
+\t--filter                        : Keep results matching filter.\n\
+\t--filter-out                    : Remove results matching filter.\n\
+\t--model                         : Compose output format using predefined attributes.\n\
+\t--format                        : Attributes are printed following the given format.\n\
+\t--print-attributes              : Print available attributes for printing and filtering.\n\
+\t--print-models                  : Print available models for printing.\n\
+${MODEL_DESC}
+${FILTER_DESC}"
+
+DEPENDENCIES="jq"
+
+#######################
+### Check arguments ###
+#######################
+while [ ${#} -ne 0 ]; do
+	case "${1}" in
+		-h|--help)                  printf "%b%b" "${DESCRIPTION}" "${USAGE}"; exit 0;;
+		-i|--input)                 shift; INPUT=${1};;
+		-o|--output)                shift; OUTPUT=${1};;
+		-s|--csv-separator)         shift; CSV_SEPARATOR=${1};;
+		--no-header)                NO_HEADER=true;;
+		--filter)                   shift; IS_FILTER=true; FILTER+=${1},;;
+		--filter-out)               shift; IS_FILTER_OUT=true; FILTER_OUT+=${1},;;
+		--print-attributes)         PRINT_ATTRS=true;;
+		--print-models)             PRINT_MODELS=true;;
+		--model)                    shift; COMPOSED_MODEL_USED=true; [ -z "${COMPOSED_MODEL}" ] && COMPOSED_MODEL=${1};;
+		--model-*)                  PREDEFINED_MODEL_USED=true; [ -z "${PREDEFINED_MODEL}" ] && PREDEFINED_MODEL=${1};;
+		--format)                   shift; OUTPUT_FORMAT_USED=true;  [ -z "${OUTPUT_FORMAT}" ] && OUTPUT_FORMAT=${1};;
+		*)                          printf "${USAGE}"; exit 1;;
+	esac
+	shift
+done
+
+# Handle I/O redirections
+[ -z "${INPUT}" ] ||
+{
+	[ -f "${INPUT}" ] || fail "Error : Input file '${INPUT}' doesn't exist"
+	exec < ${INPUT}
+}
+[ -z "${OUTPUT}" ] ||
+{
+	[[ "${OUTPUT}" =~ ^.+\.csv$ ]] || OUTPUT=${OUTPUT}.csv
+	exec > ${OUTPUT}
+}
+
+# Check CSV separator
+[ -z "${CSV_SEPARATOR}" ] && fail "Error : CSV separator undefined"
+
+# Check filters
+${IS_FILTER} && [ -z "${FILTER}" ] && fail "Error : No filter given\n${FILTER_DESC}"
+${IS_FILTER_OUT} && [ -z "${FILTER_OUT}" ] && fail "Error : No filter given\n${FILTER_DESC}"
+IFS=','
+for filter in ${FILTER}${FILTER_OUT}
+do
+	[[ ! "${filter}" =~ ^.+=.+$ ]] &&\
+	[[ ! "${filter}" =~ ^.+\[.+\]$ ]] &&\
+	fail "Error : Incorrect filter pattern '${filter}'\n${FILTER_DESC}"
+done
+
+####################################
+### Declare attributes and models ###
+#####################################
+SEP=${CSV_SEPARATOR}
+
+# Declare attributes
+declare -A attr_table
+attr_table[assigne]="\(.assignee.name)"
+attr_table[author]="\(.author.name)"
+attr_table[creation-date]="\(.created_at)"
+attr_table[description]="\\\"\(.description)\\\""
+attr_table[due-date]="\(.due_date)"
+attr_table[id]="\(.iid)"
+attr_table[labels]="\(.labels)"
+attr_table[milestone]="\(.milestone.title)"
+attr_table[state]="\(.state)"
+attr_table[title]="\(.title)"
+
+# Declare models
+declare -A model_table
+model_table[title]="${attr_table[title]}"
+model_table[id-title]="${attr_table[id]}${SEP}${attr_table[title]}"
+model_table[id-title-labels]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[labels]}"
+model_table[title-desc]="${attr_table[title]}${SEP}${attr_table[description]}"
+model_table[id-title-desc]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[description]}"
+model_table[all]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[state]}${SEP}${attr_table[title]}${SEP}${attr_table[labels]}${SEP}${attr_table[assigne]}${SEP}${attr_table[author]}${SEP}${attr_table[creation-date]}${SEP}${attr_table[description]}"
+
+${PRINT_ATTRS} &&
+{
+	log -en "Predefined attributes:\n\t"
+	for attr in ${!attr_table[@]}
+	do
+		log -en "'${attr}' "
+	done
+	log
+}
+${PRINT_MODELS} &&
+{
+	log -en "Predefined models:\n\t"
+	for model in ${!model_table[@]}
+	do
+		log -en "'${model}' "
+	done
+	log
+}
+${PRINT_ATTRS} || ${PRINT_MODELS} && exit 0
+
+##########################
+### Check dependencies ###
+##########################
+step "### Check dependencies ###"
+dpkg -s ${DEPENDENCIES} > /dev/null 2>&1 ||
+{
+	log "Missing following packages :"
+	log -n "    "
+	for dep in ${DEPENDENCIES}; do
+		dpkg -s "${dep}" > /dev/null 2>&1 || log -n "${dep} "
+	done
+	log
+	log "Install them running 'apt-get install' and retry"
+	exit 1
+}
+
+#############################
+### Prepare output format ###
+#############################
+step "### Compose output format ###"
+JQ_OUTPUT=
+
+# Use predefined model
+if ${PREDEFINED_MODEL_USED}; then
+	predefined_model_found=false
+	for model in ${!model_table[@]}
+	do
+		[ "--model-${model}" = "${PREDEFINED_MODEL}" ] && predefined_model_found=true
+	done
+	${predefined_model_found} || fail "Error : Unknown model '${PREDEFINED_MODEL}'"
+	JQ_OUTPUT="${model_table[$(sed 's/--model-//' <<< ${PREDEFINED_MODEL})]}"
+# Use composed model
+elif ${COMPOSED_MODEL_USED}; then
+	IFS=','
+	for attr in ${COMPOSED_MODEL}
+	do
+		if [ -z "${attr_table[${attr}]}" ]
+		then
+			fail "Error : Unknown attribute '${attr}'"
+		else
+			JQ_OUTPUT+="${attr_table[${attr}]}${SEP}"
+		fi
+	done
+# Use given output format
+elif ${OUTPUT_FORMAT_USED}; then
+	JQ_OUTPUT+=${OUTPUT_FORMAT}
+# Default format
+else
+	JQ_OUTPUT=${model_table[all]}
+fi
+[ -z "${JQ_OUTPUT}" ] && fail "Error : Unable to compose jq filter"
+
+log $JQ_OUTPUT
+
+#########################
+### Prepare jq filter ###
+#########################
+step "### Compose jq filter ###"
+JQ_FILTER=
+
+IFS=','
+for filter in ${FILTER}
+do
+	[[ "${filter}" =~ ^.+=.+$ ]] && JQ_FILTER+=$(sed -r 's/(.+)=(.+)/ | select\(\.\1==\"\2\"\)/' <<< ${filter})
+	[[ "${filter}" =~ ^.+\[.+\]$ ]] && JQ_FILTER+=$(sed -r 's/(.+)\[(.+)]/ | select(\.\1 | index(\"\2\"))/' <<< ${filter})
+done
+for filter in ${FILTER_OUT}
+do
+	[[ "${filter}" =~ ^.+=.+$ ]] && JQ_FILTER+=$(sed -r 's/(.+)=(.+)/ | select\(\.\1!=\"\2\"\)/' <<< ${filter})
+	[[ "${filter}" =~ ^.+\[.+\]$ ]] && JQ_FILTER+=$(sed -r 's/(.+)\[(.+)]/ | select(\.\1 | index(\"\2\") | not)/' <<< ${filter})
+done
+#[ -z "${JQ_FILTER}" ] && fail "Error : Unable to compose jq filter"
+
+log $JQ_FILTER
+
+###########################
+### Convert JSON to CSV ###
+###########################
+step "### Convert JSON to CSV ###"
+
+jq -r ".[] ${JQ_FILTER} | \"${JQ_OUTPUT}\""
+
+exit 0
+
+
+
+
+
+

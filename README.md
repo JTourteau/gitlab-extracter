@@ -8,7 +8,7 @@ This project is currently issuing HTTP GET requests to gitlab API in order to re
 
 ## Retrieving content as JSON
 
-The script used to retrieve Gitlab project's issues is **gitlab-extracter**
+The script used to retrieve Gitlab project's issues is **gitlab-extracter**.
 
 This script retrieve Gitlab project issues from its from project's id.
 
@@ -35,9 +35,70 @@ Currently, the only supported authentication method is using **Personal access t
 
 Please refer to [Gitlab API documentation](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) in order to configure acces to private projects.
 
+## Converting JSON to CSV
+
+The script used to convert JSON project content to a CSV file is **json2csv**.
+
+    Convert Gitlab JSON issues to a CSV file using 'jq'.
+    	Issues can be filtered either by using predefined filters or by composing it with available options.
+    	The output pattern can also be chosen from the predefined ones or composed with options.
+
+    	NOTE : 'jq' Debian package has to be installed.
+
+    Usage: ./json2csv [-h|--help] [OPTIONS]
+    Options:
+    	-h|--help                       : Print this help.
+    	-i|--input                      : Input JSON file. If not specified, JSON is read from stdin.
+    	-o|--output                     : Output CSV file. If not specified, CSV is printed on stdout.
+    	-s|--csv-separator              : The character separator to be used in the CSV output file. If not specified, ';' is used.
+    	--no-header                     : Do not print CSV header.
+    	--filter                        : Keep results matching filter.
+    	--filter-out                    : Remove results matching filter.
+    	--model                         : Compose output format using predefined attributes.
+    	--format                        : Attributes are printed following the given format.
+    	--print-attributes              : Print available attributes for printing and filtering.
+    	--print-models                  : Print available models for printing.
+
+    Composing models with predefined attributes: (--model <MODEL>)
+
+    	Output format follows the order of given attributes and uses the CSV separator.
+
+    	 - assigne                   The person who has been assigned to the issue.
+    	 - author                    The issue's author.
+    	 - creation-date             Issue's creation date.
+    	 - description               Issue's description.
+    	 - due-date                  Issue's end date.
+    	 - id                        Issue's id.
+    	 - labels                    Issue's labels.
+    	 - milestone                 Issue's milestone.
+    	 - state                     Issue's current state.
+    	 - title                     Issue's title.
+
+    	MODEL format: --model attr1,attr2,attr3
+
+    Predefined models: (--model-MODELNAME)
+
+    	Predefined models use CSV separator between attributes.
+
+    	 --model-title               Print only title
+    	 --model-id-title            Print id and title
+    	 --model-id-title-labels     Print id, title and labels
+    	 --model-title-desc          Print title and description
+    	 --model-id-title-desc       Print id, title and description
+    	 --model-all                 Print all attributes in the following order: id, title, state, milestone, labels, assigne, author, creation-date and description
+
+    With given format: (--format <FORMAT>)
+
+    	Selected attributes are printed following the given format, the CSV separator is not used.
+
+    Filters' attributes shall be choosen from predefined attributes.
+
+    Filter format:
+    	attribute=value   ==>  Attribute is equal to value
+    	attribute[value]  ==>  Attribute contains value (for lists)
+
 ## More to come...
 
- - Issue filtering
  - curl improvements (use 'curl --header' for HTTP header instead of giving GET parameters on URL)
  - OAuth2 authentication
  - Session cookie identification
