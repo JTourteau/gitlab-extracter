@@ -106,11 +106,9 @@ The script used to convert JSON project content to a CSV file is **json2csv**.
     	attribute=value   ==>  Attribute is equal to value
     	attribute[value]  ==>  Attribute contains value (for lists)
 
-
-
 ## More to come...
 
- - curl improvements (use 'curl --header' for HTTP header instead of giving GET parameters on URL)
+ - Allow user to load its own attributes and models from a configuration file
  - OAuth2 authentication
  - Session cookie identification
- - handle HTTP return codes
+ - Handle and detail HTTP return codes
