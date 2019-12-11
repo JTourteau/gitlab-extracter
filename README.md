@@ -53,6 +53,7 @@ The script used to convert JSON project content to a CSV file is **json2csv**.
     Usage: ./json2csv [-h|--help] [OPTIONS]
     Options:
     	-h|--help                       : Print this help.
+    	-c|--config-file                : Load models and attributes from given configuration file.
     	-i|--input                      : Input JSON file. If not specified, JSON is read from stdin.
     	-o|--output                     : Output CSV file. If not specified, CSV is printed on stdout.
     	-s|--csv-separator              : The character separator to be used in the CSV output file. If not specified, ';' is used.
@@ -97,6 +98,10 @@ The script used to convert JSON project content to a CSV file is **json2csv**.
     With given format: (--format <FORMAT>)
 
     	Selected attributes are printed following the given format, the CSV separator is not used.
+
+    	NOTE : Remember that the given format will be used as a jq output format, if it doesn't match a valid jq syntax the script will fail.
+    	       Refer to jq documentation and/or inspire from default models in order to compose a customized output format.
+
     ###############
     ### Filters ###
     ###############
@@ -106,9 +111,30 @@ The script used to convert JSON project content to a CSV file is **json2csv**.
     	attribute=value   ==>  Attribute is equal to value
     	attribute[value]  ==>  Attribute contains value (for lists)
 
+    ############################
+    ### Custom configuration ###
+    ############################
+    A custom configuration can be loaded in order to define your own attributes and your own output models.
+
+    Custom attributes:
+    	Attributes are defined into a bash array named 'attr_table'
+    		To define a custom attribute use the following syntax : attr_table[ATTR_NAME]="ATTR_VALUE"
+
+    	NOTE : Remember that ATTR_VALUE is a jq output format piece, if it doesn't match a valid jq syntax the script will fail.
+    	       Refer to jq documentation and/or inspire from defaults ones in order to compose custom attributes.
+
+    Custom models:
+    	Models are defined into a bash array named 'model_table'
+    		To define a custom model use the following syntax : model_table[MODEL_NAME]="MODEL_VALUE"
+
+    	NOTE : Remember that MODEL_VALUE is a jq output format composed with attributes, if it doesn't match a valid jq syntax the script will fail.
+    	       Refer to jq documentation and/or inspire from defaults ones in order to compose custom models.
+
+    	       You can use the defined CSV separator (-s) by calling CSV_SEPARATOR variable as follow : 
+    	           model_table[MODEL_NAME]="${attr_table[ATTR_1_NAME]}${CSV_SEPARATOR}${attr_table[ATTR_2_NAME]}"
+
 ## More to come...
 
- - Allow user to load its own attributes and models from a configuration file
  - OAuth2 authentication
  - Session cookie identification
  - Handle and detail HTTP return codes
