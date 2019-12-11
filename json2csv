@@ -27,6 +27,7 @@ step()
 ### Define variables ###
 ########################
 
+CONFIG=
 CSV_SEPARATOR=";"
 INPUT=
 OUTPUT=
@@ -80,7 +81,11 @@ Predefined models: (--model-MODELNAME)\n\
 \n\
 With given format: (--format <FORMAT>)\n\
 \n\
-\tSelected attributes are printed following the given format, the CSV separator is not used."
+\tSelected attributes are printed following the given format, the CSV separator is not used.
+\n\
+\tNOTE : Remember that the given format will be used as a jq output format, if it doesn't match a valid jq syntax the script will fail.\n\
+\t       Refer to jq documentation and/or inspire from default models in order to compose a customized output format.\n\
+"
 FILTER_DESC="$(step '### Filters ###' 2>&1)\n\
 Filters' attributes shall be choosen from predefined attributes.\n\
 \n\
@@ -88,10 +93,31 @@ Filter format:
 \tattribute=value   ==>  Attribute is equal to value\n\
 \tattribute[value]  ==>  Attribute contains value (for lists)\n\
 "
+CONFIGURATION_DESC="$(step '### Custom configuration ###' 2>&1)\n\
+A custom configuration can be loaded in order to define your own attributes and your own output models.\n\
+\n\
+Custom attributes:
+\tAttributes are defined into a bash array named 'attr_table'
+\t\tTo define a custom attribute use the following syntax : attr_table[ATTR_NAME]=\"ATTR_VALUE\"\n\
+\n\
+\tNOTE : Remember that ATTR_VALUE is a jq output format piece, if it doesn't match a valid jq syntax the script will fail.\n\
+\t       Refer to jq documentation and/or inspire from defaults ones in order to compose custom attributes.\n\
+\n\
+Custom models:
+\tModels are defined into a bash array named 'model_table'
+\t\tTo define a custom model use the following syntax : model_table[MODEL_NAME]=\"MODEL_VALUE\"\n\
+\n\
+\tNOTE : Remember that MODEL_VALUE is a jq output format composed with attributes, if it doesn't match a valid jq syntax the script will fail.\n\
+\t       Refer to jq documentation and/or inspire from defaults ones in order to compose custom models.\n\
+\n\
+\t       You can use the defined CSV separator (-s) by calling CSV_SEPARATOR variable as follow : \n\
+\t           model_table[MODEL_NAME]=\"\${attr_table[ATTR_1_NAME]}\${CSV_SEPARATOR}\${attr_table[ATTR_2_NAME]}\"
+"
 USAGE="$(step '### Usage ###' 2>&1)\n\
 Usage: ${0} [-h|--help] [OPTIONS]\n\
 Options:\n\
 \t-h|--help                       : Print this help.\n\
+\t-c|--config-file                : Load models and attributes from given configuration file.\n\
 \t-i|--input                      : Input JSON file. If not specified, JSON is read from stdin.\n\
 \t-o|--output                     : Output CSV file. If not specified, CSV is printed on stdout.\n\
 \t-s|--csv-separator              : The character separator to be used in the CSV output file. If not specified, ';' is used.\n\
@@ -103,7 +129,8 @@ Options:\n\
 \t--print-attributes              : Print available attributes for printing and filtering.\n\
 \t--print-models                  : Print available models for printing.\n\
 ${MODEL_DESC}
-${FILTER_DESC}"
+${FILTER_DESC}
+${CONFIGURATION_DESC}"
 
 DEPENDENCIES="jq"
 
@@ -113,6 +140,7 @@ DEPENDENCIES="jq"
 while [ ${#} -ne 0 ]; do
 	case "${1}" in
 		-h|--help)                  log "${DESCRIPTION}${USAGE}"; exit 0;;
+		-c|--config-file)           shift; CONFIG=${1};;
 		-i|--input)                 shift; INPUT=${1};;
 		-o|--output)                shift; OUTPUT=${1};;
 		-s|--csv-separator)         shift; CSV_SEPARATOR=${1};;
@@ -154,6 +182,7 @@ do
 	[[ ! "${filter}" =~ ^.+\[.+\]$ ]] &&\
 	fail "Error : Incorrect filter pattern '${filter}'\n${FILTER_DESC}"
 done
+IFS=' '
 
 ####################################
 ### Declare attributes and models ###
@@ -182,23 +211,29 @@ model_table[title-desc]="${attr_table[title]}${SEP}${attr_table[description]}"
 model_table[id-title-desc]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[description]}"
 model_table[all]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[state]}${SEP}${attr_table[title]}${SEP}${attr_table[labels]}${SEP}${attr_table[assigne]}${SEP}${attr_table[author]}${SEP}${attr_table[creation-date]}${SEP}${attr_table[description]}"
 
+[ -z ${CONFIG} ] ||
+{
+	[ -f ${CONFIG} ] || fail "Error : Configuration file '${CONFIG}' doesn't exist"
+	source ${CONFIG}
+}
+
 ${PRINT_ATTRS} &&
 {
-	log -en "Predefined attributes:\n\t"
-	for attr in ${!attr_table[@]}
+	echo -en "Predefined attributes:\n\t"
+	for attr in $(tr ' ' '\n' <<< ${!attr_table[@]} | sort -u | tr '\n' ' ')
 	do
-		log -en "'${attr}' "
+		echo -en "'${attr}' "
 	done
-	log
+	echo
 }
 ${PRINT_MODELS} &&
 {
-	log -en "Predefined models:\n\t"
-	for model in ${!model_table[@]}
+	echo -en "Predefined models:\n\t"
+	for model in $(tr ' ' '\n' <<< ${!model_table[@]} | sort -u | tr '\n' ' ')
 	do
-		log -en "'${model}' "
+		echo -en "'${model}' "
 	done
-	log
+	echo
 }
 ${PRINT_ATTRS} || ${PRINT_MODELS} && exit 0
 
@@ -245,6 +280,7 @@ elif ${COMPOSED_MODEL_USED}; then
 			JQ_OUTPUT+="${attr_table[${attr}]}${SEP}"
 		fi
 	done
+	IFS=' '
 # Use given output format
 elif ${OUTPUT_FORMAT_USED}; then
 	JQ_OUTPUT+=${OUTPUT_FORMAT}
@@ -253,8 +289,6 @@ else
 	JQ_OUTPUT=${model_table[all]}
 fi
 [ -z "${JQ_OUTPUT}" ] && fail "Error : Unable to compose jq filter"
-
-log $JQ_OUTPUT
 
 #########################
 ### Prepare jq filter ###
@@ -273,16 +307,14 @@ do
 	[[ "${filter}" =~ ^.+=.+$ ]] && JQ_FILTER+=$(sed -r 's/(.+)=(.+)/ | select\(\.\1!=\"\2\"\)/' <<< ${filter})
 	[[ "${filter}" =~ ^.+\[.+\]$ ]] && JQ_FILTER+=$(sed -r 's/(.+)\[(.+)]/ | select(\.\1 | index(\"\2\") | not)/' <<< ${filter})
 done
-#[ -z "${JQ_FILTER}" ] && fail "Error : Unable to compose jq filter"
-
-log $JQ_FILTER
+IFS=' '
 
 ###########################
 ### Convert JSON to CSV ###
 ###########################
 step "### Convert JSON to CSV ###"
 
-jq -r ".[] ${JQ_FILTER} | \"${JQ_OUTPUT}\""
+jq -r ".[] ${JQ_FILTER} | \"${JQ_OUTPUT}\"" || fail "Error : Unable to compose a valid jq filter"
 
 exit 0
 
