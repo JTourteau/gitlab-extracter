@@ -12,22 +12,21 @@ The script used to retrieve Gitlab project's issues is **gitlab-extracter**.
 
 This script retrieve Gitlab project issues from its from project's id.
 
-    Usage: ./gitlab-extracter --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o|--output OUTPUT.json] [-u|--url URL] [--no-proxy]
-    		-h|--help                       : Print help.
-    		-a|--auth                       : Authentication key 
-    		-b|--browse                     : Open JSON content with default web browser. 
-    		-i|--id                         : Gitlab project id. 
-    		-o|--output                     : Save JSON content into given file. 
-    		-u|--url                        : Gitlab server URL ('https://gitlab.com' as default value).
-    		--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.
-
+    Usage: ./gitlab-extracter --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o|--output OUTPUT.json] [-S|--silent] [-u|--url URL] [--no-proxy]
+     		-h|--help                       : Print this help.
+     		-a|--auth                       : Authentication key
+     		-b|--browse                     : Open JSON content with default web browser.
+     		-i|--id                         : Gitlab project id.
+     		-o|--output                     : Save JSON content into given file.
+     		-S|--silent                     : Script will not output anything except JSON.
+     		-u|--url                        : Gitlab server URL ('https://gitlab.com' as default value).
+     		--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.
 
     Retrieve gitlab project's content as JSON file. 
-              	The content is either stored in a file or printed on standard output. 
-              	The JSON content can also be oppened into a web browser.
-              	
-              	NOTE : 'curl' package has to be installed.
+                  	The content is either stored in a file or printed on standard output.
+                  	The JSON content can also be oppened into a web browser.
 
+                  	NOTE : 'curl' package has to be installed.
 
 ### Authentication
 
@@ -57,6 +56,7 @@ The script used to convert JSON project content to a CSV file is **json2csv**.
     	-i|--input                      : Input JSON file. If not specified, JSON is read from stdin.
     	-o|--output                     : Output CSV file. If not specified, CSV is printed on stdout.
     	-s|--csv-separator              : The character separator to be used in the CSV output file. If not specified, ';' is used.
+    	-S|--silent                     : Script will not output anything except CSV.
     	--no-header                     : Do not print CSV header.
     	--filter                        : Keep results matching filter.
     	--filter-out                    : Remove results matching filter.

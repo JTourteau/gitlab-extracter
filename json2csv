@@ -44,6 +44,7 @@ COMPOSED_MODEL_USED=false
 COMPOSED_MODEL=
 OUTPUT_FORMAT_USED=false
 OUTPUT_FORMAT=
+SILENT=false
 DESCRIPTION="$(step '### Description ###' 2>&1)\n\
 Convert Gitlab JSON issues to a CSV file using 'jq'.\n\
 \tIssues can be filtered either by using predefined filters or by composing it with available options.\n\
@@ -121,6 +122,7 @@ Options:\n\
 \t-i|--input                      : Input JSON file. If not specified, JSON is read from stdin.\n\
 \t-o|--output                     : Output CSV file. If not specified, CSV is printed on stdout.\n\
 \t-s|--csv-separator              : The character separator to be used in the CSV output file. If not specified, ';' is used.\n\
+\t-S|--silent                     : Script will not output anything except CSV.\n\
 \t--no-header                     : Do not print CSV header.\n\
 \t--filter                        : Keep results matching filter.\n\
 \t--filter-out                    : Remove results matching filter.\n\
@@ -144,6 +146,7 @@ while [ ${#} -ne 0 ]; do
 		-i|--input)                 shift; INPUT=${1};;
 		-o|--output)                shift; OUTPUT=${1};;
 		-s|--csv-separator)         shift; CSV_SEPARATOR=${1};;
+		-S|--silent)                SILENT=true;;
 		--no-header)                NO_HEADER=true;;
 		--filter)                   shift; IS_FILTER=true; FILTER+=${1},;;
 		--filter-out)               shift; IS_FILTER_OUT=true; FILTER_OUT+=${1},;;
@@ -168,6 +171,7 @@ done
 	[[ "${OUTPUT}" =~ ^.+\.csv$ ]] || OUTPUT=${OUTPUT}.csv
 	exec > ${OUTPUT}
 }
+${SILENT} && exec 2> /dev/null
 
 # Check CSV separator
 [ -z "${CSV_SEPARATOR}" ] && fail "Error : CSV separator undefined"
