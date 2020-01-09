@@ -17,6 +17,7 @@ fail()
 
 step()
 {
+	${NO_STEP} && return 0
 	len=$(echo "$*" | awk '{print length}')
 	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
 	log "$*"
@@ -37,6 +38,7 @@ NO_PROXY=false
 CSV_FILE=
 BROWSE_FILE=
 SILENT=false
+NO_STEP=false
 PARAMS="?per_page=100&page=1"
 DESCRIPTION="Retrieve gitlab project's content as JSON file. \n \
              	The content is either stored in a file or printed on standard output. \n \
@@ -53,6 +55,7 @@ USAGE="Usage: ${0} --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o
 \t\t-S|--silent                     : Script will not output anything except JSON. \n \
 \t\t-u|--url                        : Gitlab server URL ('${URL}' as default value).\n \
 \t\t--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.\n \
+\t\t--no-step                       : Don't print script steps but keep messages. \n \
 \n"
 
 DEPENDENCIES="curl"
@@ -72,6 +75,7 @@ while [ ${#} -ne 0 ]; do
 		-S|--silent)                SILENT=true;;
 		-u|--url)                   shift; URL=${1};;
 		--no-proxy)                 NO_PROXY=true;;
+		--no-step)                  NO_STEP=true;;
 		*)                          log "${USAGE}"; exit 1;;
 	esac
 	shift

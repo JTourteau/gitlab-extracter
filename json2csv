@@ -17,6 +17,7 @@ fail()
 
 step()
 {
+	${NO_STEP} && return 0
 	len=$(echo "$*" | awk '{print length}')
 	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
 	log "$*"
@@ -45,6 +46,7 @@ COMPOSED_MODEL=
 OUTPUT_FORMAT_USED=false
 OUTPUT_FORMAT=
 SILENT=false
+NO_STEP=false
 DESCRIPTION="$(step '### Description ###' 2>&1)\n\
 Convert Gitlab JSON issues to a CSV file using 'jq'.\n\
 \tIssues can be filtered either by using predefined filters or by composing it with available options.\n\
@@ -124,6 +126,7 @@ Options:\n\
 \t-s|--csv-separator              : The character separator to be used in the CSV output file. If not specified, ';' is used.\n\
 \t-S|--silent                     : Script will not output anything except CSV.\n\
 \t--no-header                     : Do not print CSV header.\n\
+\t--no-step                       : Don't print script steps but keep messages. \n \
 \t--filter                        : Keep results matching filter.\n\
 \t--filter-out                    : Remove results matching filter.\n\
 \t--model                         : Compose output format using predefined attributes.\n\
@@ -148,6 +151,7 @@ while [ ${#} -ne 0 ]; do
 		-s|--csv-separator)         shift; CSV_SEPARATOR=${1};;
 		-S|--silent)                SILENT=true;;
 		--no-header)                NO_HEADER=true;;
+		--no-step)                  NO_STEP=true;;
 		--filter)                   shift; IS_FILTER=true; FILTER+=${1},;;
 		--filter-out)               shift; IS_FILTER_OUT=true; FILTER_OUT+=${1},;;
 		--print-attributes)         PRINT_ATTRS=true;;
