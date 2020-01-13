@@ -24,6 +24,160 @@ step()
 	log "$(seq -s'#' 0 ${len} | tr -d '[:digit:]')"
 }
 
+get_attrs()
+{
+	local attrs=$(echo "${ATTRIBUTE_LIST}" | jq -r ".[] | \"\(.name)\"")
+	attrs="${attrs//$'\n'/ }"
+	[ -z "${attrs}" ] && fail "No attribute has been defined"
+	echo "${attrs}"
+}
+
+get_models()
+{
+	local models=$(echo "${MODEL_LIST}" | jq -r ".[] | \"\(.name)\"")
+	models="${models//$'\n'/ }"
+	[ -z "${models}" ] && fail "No model has been defined"
+	echo "${models}"
+}
+
+get_attr_filter()
+{
+	[ -z "${1}" ] && fail "No argument given to '${FUNCNAME[0]}'"
+	local filter=$(echo "${ATTRIBUTE_LIST}" | jq -r ".[] | select(.name==\"${1}\") | \"\(.format)\"")
+	[ -z "${filter}" ] && fail "No attribute '${1}' found"
+	echo "${filter}"
+}
+
+get_attr_format()
+{
+	[ -z "${1}" ] && fail "No argument given to '${FUNCNAME[0]}'"
+	local format=$(echo "${ATTRIBUTE_LIST}" | jq -r ".[] | select(.name==\"${1}\") | \"\(.format)\"")
+	[ -z "${format}" ] && fail "No attribute '${1}' found"
+	if is_attr_expanded ${1}; then
+		echo "\(${format})"
+	else
+		echo "${format}"
+	fi
+}
+
+get_model_attrs()
+{
+	[ -z "${1}" ] && fail "No argument given to '${FUNCNAME[0]}'"
+	local attrs=$(echo "${MODEL_LIST}" | jq -r ".[] | select(.name==\"${1}\") | \"\(.attrs)\"")
+	attrs="${attrs//$','/ }"
+	echo "${attrs}"
+}
+
+get_model_format()
+{
+	[ -z "${1}" ] && fail "No argument given to '${FUNCNAME[0]}'"
+	local format=$(echo "${MODEL_LIST}" | jq -r ".[] | select(.name==\"${1}\") | \"\(.attrs)\"")
+	[ -z "${format}" ] && fail "No attribute '${1}' found"
+	local output_format=
+	IFS=','
+	for attr in ${format}
+	do
+		output_format+="\($(get_attr_format ${attr}))${SEP}"
+	done
+	IFS=' '
+	echo "${output_format}"
+}
+
+is_attr_expanded()
+{
+	[ -z "${1}" ] && fail "No argument given '${FUNCNAME[0]}'"
+	is_expanded=$(echo "${ATTRIBUTE_LIST}" | jq -r ".[] | select(.name==\"${1}\") | \"\(.expand)\"")
+	[ "${is_expanded}" = "yes" ] && return 0
+	return 1
+}
+
+is_attr_quoted()
+{
+	[ -z "${1}" ] && fail "No argument given '${FUNCNAME[0]}'"
+	is_quoted=$(echo "${ATTRIBUTE_LIST}" | jq -r ".[] | select(.name==\"${1}\") | \"\(.is_quoted)\"")
+	[ "${is_quoted}" = "yes" ] && return 0
+	return 1
+}
+
+is_attr_quotes_replaced()
+{
+	[ -z "${1}" ] && fail "No argument given '${FUNCNAME[0]}'"
+	quotes_replaced=$(echo "${ATTRIBUTE_LIST}" | jq -r ".[] | select(.name==\"${1}\") | \"\(.replace_quotes)\"")
+	[ "${quotes_replaced}" = "yes" ] && return 0
+	return 1
+}
+
+filter()
+{
+	[ -z "${1}" ] && fail "No filter given to '${FUNCNAME[0]}'"
+
+	local filter=
+
+	if [[ "${1}" =~ ^(.+)=(.+)$ ]];then
+		attr=${BASH_REMATCH[1]}
+		value=${BASH_REMATCH[2]}
+		is_attr_quoted ${attr} && value="\"$value\""
+		filter=" | select($(get_attr_filter ${attr})==${value})"
+	elif [[ "${filter}" =~ ^(.+)\[(.+)\]$ ]]; then
+		attr=${BASH_REMATCH[1]}
+		value=${BASH_REMATCH[2]}
+		is_attr_quoted ${attr} && value="\"$value\""
+		filter=" | select($(get_attr_filter ${attr}) | index(${value}))"
+	else
+		fail "Filter '${1}' has incorrect format"
+	fi
+
+	echo ${filter}
+}
+
+filter_out()
+{
+	[ -z "${1}" ] && fail "No filter given to '${FUNCNAME[0]}'"
+
+	local filter=
+
+	if [[ "${1}" =~ ^(.+)=(.+)$ ]];then
+		attr=${BASH_REMATCH[1]}
+		value=${BASH_REMATCH[2]}
+		is_attr_quoted ${attr} && value="\"$value\""
+		filter=" | select($(get_attr_filter ${attr})!=${value})"
+	elif [[ "${filter}" =~ ^(.+)\[(.+)\]$ ]]; then
+		attr=${BASH_REMATCH[1]}
+		value=${BASH_REMATCH[2]}
+		is_attr_quoted ${attr} && value="\"$value\""
+		filter=" | select($(get_attr_filter ${attr}) | index(${value}) | not)"
+	else
+		fail "Filter '${1}' has incorrect format"
+	fi
+
+	echo ${filter}
+}
+
+compose_output()
+{
+	[ -z "${1}" ] && fail "No argument given to '${FUNCNAME[0]}'"
+
+	local attrs=
+	local output=
+
+	if ${PREDEFINED_MODEL_USED}; then
+		attrs="$(get_model_attrs ${1})"
+	elif ${COMPOSED_MODEL_USED}; then
+		attrs="${1}"
+	fi
+
+	for attr in ${attrs}
+	do
+		if is_attr_quotes_replaced ${attr}; then
+			REPLACE_DOUBLE_QUOTES=true
+			output+="\\\"$(get_attr_format ${attr})\\\"${SEP}"
+		else
+			output+="$(get_attr_format ${attr})${SEP}"
+		fi
+	done
+	echo ${output}
+}
+
 ########################
 ### Define variables ###
 ########################
@@ -99,22 +253,26 @@ Filter format:
 CONFIGURATION_DESC="$(step '### Custom configuration ###' 2>&1)\n\
 A custom configuration can be loaded in order to define your own attributes and your own output models.\n\
 \n\
-Custom attributes:
-\tAttributes are defined into a bash array named 'attr_table'
-\t\tTo define a custom attribute use the following syntax : attr_table[ATTR_NAME]=\"ATTR_VALUE\"\n\
+Custom attributes:\n\
+\tAttributes are defined as JSON table stored into ATTRIBUTE_LIST variable\n\
+\t\tTo define a custom attribute use the following syntax : {\"name\":\"<name>\",   \"format\":\"<format>\",   \"expand\":\"<yes|no>\", \"is_quoted\":\"<yes|no>\",  \"replace_quotes\":\"<yes|no>\"}\n\
+\t\t\t - name: The attribute name\n\
+\t\t\t - format: The jq attribute format\n\
+\t\t\t - expand: Weither the attribute shall be expanded by jq or used literally\n\
+\t\t\t - is_quoted: Weither the attribute shall be surrounded with quotes for jq filtering or not\n\
+\t\t\t - replace_quotes: Weither double quotes (\") shall be replaced by simple quotes (') or not\n\
 \n\
-\tNOTE : Remember that ATTR_VALUE is a jq output format piece, if it doesn't match a valid jq syntax the script will fail.\n\
+\tNOTE : Remember that attribute format is a jq format, if it doesn't match a valid jq syntax the script will fail.\n\
 \t       Refer to jq documentation and/or inspire from defaults ones in order to compose custom attributes.\n\
 \n\
-Custom models:
-\tModels are defined into a bash array named 'model_table'
-\t\tTo define a custom model use the following syntax : model_table[MODEL_NAME]=\"MODEL_VALUE\"\n\
+Custom models:\n\
+\tModels are defined as JSON table stored into MODEL_LIST variable\n\
+\t\tTo define a custom model use the following syntax : {\"name\":\"<name>\", \"attrs\":\"<attribute_list>\"}\n\
+\t\t\t - name: The model name\n\
+\t\t\t - attrs: Attribute list coma-separated\n\
 \n\
-\tNOTE : Remember that MODEL_VALUE is a jq output format composed with attributes, if it doesn't match a valid jq syntax the script will fail.\n\
+\tNOTE : Remember that model format is composed with attributes format, if it doesn't match a valid jq syntax the script will fail.\n\
 \t       Refer to jq documentation and/or inspire from defaults ones in order to compose custom models.\n\
-\n\
-\t       You can use the defined CSV separator (-s) by calling CSV_SEPARATOR variable as follow : \n\
-\t           model_table[MODEL_NAME]=\"\${attr_table[ATTR_1_NAME]}\${CSV_SEPARATOR}\${attr_table[ATTR_2_NAME]}\"
 "
 USAGE="$(step '### Usage ###' 2>&1)\n\
 Usage: ${0} [-h|--help] [OPTIONS]\n\
@@ -198,26 +356,34 @@ IFS=' '
 SEP=${CSV_SEPARATOR}
 
 # Declare attributes
-declare -A attr_table
-attr_table[assigne]="\(.assignee.name)"
-attr_table[author]="\(.author.name)"
-attr_table[creation-date]="\(.created_at)"
-attr_table[description]="\\\"\(.description)\\\""
-attr_table[due-date]="\(.due_date)"
-attr_table[id]="\(.iid)"
-attr_table[labels]="\(.labels)"
-attr_table[milestone]="\(.milestone.title)"
-attr_table[state]="\(.state)"
-attr_table[title]="\(.title)"
+ATTRIBUTE_LIST=$(cat <<EOF
+[
+    {"name":"assigne",        "format":".assignee.name",    "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  },
+    {"name":"author",         "format":".author.name",      "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  },
+    {"name":"creation-date",  "format":".created_at",       "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  },
+    {"name":"description",    "format":".description",      "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"yes" },
+    {"name":"due-date",       "format":".due_date",         "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  },
+    {"name":"id",             "format":".iid",              "expand":"yes",  "is_quoted":"no",   "replace_quotes":"no"  },
+    {"name":"labels",         "format":".labels",           "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  },
+    {"name":"milestone",      "format":".milestone.title",  "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  },
+    {"name":"state",          "format":".state",            "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  },
+    {"name":"title",          "format":".title",            "expand":"yes",  "is_quoted":"yes",  "replace_quotes":"no"  }
+]
+EOF
+)
 
 # Declare models
-declare -A model_table
-model_table[title]="${attr_table[title]}"
-model_table[id-title]="${attr_table[id]}${SEP}${attr_table[title]}"
-model_table[id-title-labels]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[labels]}"
-model_table[title-desc]="${attr_table[title]}${SEP}${attr_table[description]}"
-model_table[id-title-desc]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[description]}"
-model_table[all]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[state]}${SEP}${attr_table[title]}${SEP}${attr_table[labels]}${SEP}${attr_table[assigne]}${SEP}${attr_table[author]}${SEP}${attr_table[creation-date]}${SEP}${attr_table[description]}"
+MODEL_LIST=$(cat <<EOF
+[
+    {"name":"title",            "attrs":"title"},
+    {"name":"id-title",         "attrs":"id,title"},
+    {"name":"id-title-labels",  "attrs":"id,title,labels"},
+    {"name":"title-desc",       "attrs":"title,description"},
+    {"name":"id-title-desc",    "attrs":"id,title,description"},
+    {"name":"all",              "attrs":"id,title,state,assigne,author,creation-date,description"}
+]
+EOF
+)
 
 [ -z ${CONFIG} ] ||
 {
@@ -228,7 +394,7 @@ model_table[all]="${attr_table[id]}${SEP}${attr_table[title]}${SEP}${attr_table[
 ${PRINT_ATTRS} &&
 {
 	echo -en "Predefined attributes:\n\t"
-	for attr in $(tr ' ' '\n' <<< ${!attr_table[@]} | sort -u | tr '\n' ' ')
+	for attr in $(get_attrs)
 	do
 		echo -en "'${attr}' "
 	done
@@ -237,7 +403,7 @@ ${PRINT_ATTRS} &&
 ${PRINT_MODELS} &&
 {
 	echo -en "Predefined models:\n\t"
-	for model in $(tr ' ' '\n' <<< ${!model_table[@]} | sort -u | tr '\n' ' ')
+	for model in $(get_models)
 	do
 		echo -en "'${model}' "
 	done
@@ -270,31 +436,21 @@ JQ_OUTPUT=
 # Use predefined model
 if ${PREDEFINED_MODEL_USED}; then
 	predefined_model_found=false
-	for model in ${!model_table[@]}
+	for model in $(get_models)
 	do
 		[ "--model-${model}" = "${PREDEFINED_MODEL}" ] && predefined_model_found=true
 	done
 	${predefined_model_found} || fail "Error : Unknown model '${PREDEFINED_MODEL}'"
-	JQ_OUTPUT="${model_table[$(sed 's/--model-//' <<< ${PREDEFINED_MODEL})]}"
+	JQ_OUTPUT=$(compose_output $(sed 's/--model-//' <<< ${PREDEFINED_MODEL}))
 # Use composed model
 elif ${COMPOSED_MODEL_USED}; then
-	IFS=','
-	for attr in ${COMPOSED_MODEL}
-	do
-		if [ -z "${attr_table[${attr}]}" ]
-		then
-			fail "Error : Unknown attribute '${attr}'"
-		else
-			JQ_OUTPUT+="${attr_table[${attr}]}${SEP}"
-		fi
-	done
-	IFS=' '
+	JQ_OUTPUT=$(compose_output "${COMPOSED_MODEL//,/ }")
 # Use given output format
 elif ${OUTPUT_FORMAT_USED}; then
 	JQ_OUTPUT+=${OUTPUT_FORMAT}
 # Default format
 else
-	JQ_OUTPUT=${model_table[all]}
+	JQ_OUTPUT=$(compose_output all)
 fi
 [ -z "${JQ_OUTPUT}" ] && fail "Error : Unable to compose jq filter"
 
@@ -307,13 +463,11 @@ JQ_FILTER=
 IFS=','
 for filter in ${FILTER}
 do
-	[[ "${filter}" =~ ^.+=.+$ ]] && JQ_FILTER+=$(sed -r 's/(.+)=(.+)/ | select\(\.\1==\"\2\"\)/' <<< ${filter})
-	[[ "${filter}" =~ ^.+\[.+\]$ ]] && JQ_FILTER+=$(sed -r 's/(.+)\[(.+)]/ | select(\.\1 | index(\"\2\"))/' <<< ${filter})
+	JQ_FILTER+=$(filter ${filter})
 done
 for filter in ${FILTER_OUT}
 do
-	[[ "${filter}" =~ ^.+=.+$ ]] && JQ_FILTER+=$(sed -r 's/(.+)=(.+)/ | select\(\.\1!=\"\2\"\)/' <<< ${filter})
-	[[ "${filter}" =~ ^.+\[.+\]$ ]] && JQ_FILTER+=$(sed -r 's/(.+)\[(.+)]/ | select(\.\1 | index(\"\2\") | not)/' <<< ${filter})
+	JQ_FILTER+=$(filter_out ${filter})
 done
 IFS=' '
 
@@ -322,10 +476,13 @@ IFS=' '
 ###########################
 step "### Convert JSON to CSV ###"
 
-jq -r ".[] ${JQ_FILTER} | \"${JQ_OUTPUT}\"" || fail "Error : Unable to compose a valid jq filter"
+if ${REMOVE_DOUBLE_QUOTES};then
+	jq -r ".[] ${JQ_FILTER} | \"${JQ_OUTPUT}\"" | sed "s/\"/'/g" | sed "s/';/\";/g" | sed "s/;'/;\"/g" || fail "Error : Unable to compose a valid jq filter"
+else
+	jq -r ".[] ${JQ_FILTER} | \"${JQ_OUTPUT}\"" || fail "Error : Unable to compose a valid jq filter"
+fi
 
 exit 0
-
 
 
 
