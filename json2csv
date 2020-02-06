@@ -118,7 +118,7 @@ filter()
 		value=${BASH_REMATCH[2]}
 		is_attr_quoted ${attr} && value="\"$value\""
 		filter=" | select($(get_attr_filter ${attr})==${value})"
-	elif [[ "${filter}" =~ ^(.+)\[(.+)\]$ ]]; then
+	elif [[ "${1}" =~ ^(.+)\[(.+)\]$ ]]; then
 		attr=${BASH_REMATCH[1]}
 		value=${BASH_REMATCH[2]}
 		is_attr_quoted ${attr} && value="\"$value\""
