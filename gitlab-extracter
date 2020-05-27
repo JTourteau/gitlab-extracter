@@ -84,7 +84,7 @@ done
 [ -z "${ID}" ] && fail "You shall specify gitlab project id."
 [ -z "${KEY}" ] || AUTH="&private_token=${KEY}"
 
-${NO_PROXY} && { log "Proxies are disabled"; unset {http,https,HTTP,HTTPS}_{proxy,PROXY}; }
+${NO_PROXY} && { log "Proxies are disabled"; unset {http,https,HTTP,HTTPS,no,NO,all,ALL}_{proxy,PROXY}; }
 ${SILENT} && exec 2> /dev/null
 
 [ -z "${OUTPUT}" ] ||
@@ -108,13 +108,12 @@ dpkg -s ${DEPENDENCIES} > /dev/null 2>&1 ||
 	log "Install them running 'apt-get install' and retry"
 	exit 1
 }
-log "OK"
 
 ###################################
 ### Check that URL is reachable ###
 ###################################
 step "### Check that ${URL} is reachable ###"
-ping -c1 -W 5 $(sed 's:^.*\://\(.*$\):\1:' <<< ${URL}) > /dev/null 2>&1 && log "OK" || fail "Error : ${URL} is not reachable"
+ping -c1 -W 5 $(sed 's:^.*\://\(.*$\):\1:' <<< ${URL}) > /dev/null 2>&1 || fail "Error : ${URL} is not reachable"
 
 ########################
 ### Retrieve content ###
@@ -127,6 +126,7 @@ http_params="?per_page=1&page=1${AUTH}"
 curl -s -D ${HEADER_FILE} ${URL}/${GITLAB_API}/${ID}/issues${http_params} >> /dev/null
 
 entry_num=$(grep X-Total: ${HEADER_FILE} | grep -oE '[0-9]+')
+[ -z ${entry_num} ] && fail "No issue to retrieve"
 
 log "Retrieving ${entry_num} entries"
 
@@ -151,8 +151,6 @@ do
 done
 
 echo >&2
-
-log "OK"
 
 #####################
 ### Print content ###
