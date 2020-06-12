@@ -117,7 +117,18 @@ filter()
 		attr=${BASH_REMATCH[1]}
 		value=${BASH_REMATCH[2]}
 		is_attr_quoted ${attr} && value="\"$value\""
-		filter=" | select($(get_attr_filter ${attr})==${value})"
+		i=0
+		filter=" | select("
+		OLDIFS=${IFS}
+		IFS=','
+		for val in $value;
+		do
+			[ "$i" -eq 0 ] || filter+=" or "
+			filter+="$(get_attr_filter ${attr})==${val}"
+			i=$((i+1))
+		done
+		IFS=${OLDIFS}
+		filter+=")"
 	elif [[ "${1}" =~ ^(.+)\[(.+)\]$ ]]; then
 		attr=${BASH_REMATCH[1]}
 		value=${BASH_REMATCH[2]}
@@ -140,7 +151,18 @@ filter_out()
 		attr=${BASH_REMATCH[1]}
 		value=${BASH_REMATCH[2]}
 		is_attr_quoted ${attr} && value="\"$value\""
-		filter=" | select($(get_attr_filter ${attr})!=${value})"
+		i=0
+		filter=" | select("
+		OLDIFS=${IFS}
+		IFS=','
+		for val in $value;
+		do
+			[ "$i" -eq 0 ] || filter+=" and "
+			filter+="$(get_attr_filter ${attr})!=${val}"
+			i=$((i+1))
+		done
+		IFS=${OLDIFS}
+		filter+=")"
 	elif [[ "${1}" =~ ^(.+)\[(.+)\]$ ]]; then
 		attr=${BASH_REMATCH[1]}
 		value=${BASH_REMATCH[2]}
@@ -247,7 +269,7 @@ FILTER_DESC="$(step '### Filters ###' 2>&1)\n\
 Filters' attributes shall be choosen from predefined attributes.\n\
 \n\
 Filter format:
-\tattribute=value   ==>  Attribute is equal to value\n\
+\tattribute=value   ==>  Attribute is equal to value, several values can be passed separated by coma\n\
 \tattribute[value]  ==>  Attribute contains value (for lists)\n\
 "
 CONFIGURATION_DESC="$(step '### Custom configuration ###' 2>&1)\n\
@@ -310,8 +332,8 @@ while [ ${#} -ne 0 ]; do
 		-S|--silent)                SILENT=true;;
 		--no-header)                NO_HEADER=true;;
 		--no-step)                  NO_STEP=true;;
-		--filter)                   shift; IS_FILTER=true; FILTER+=${1},;;
-		--filter-out)               shift; IS_FILTER_OUT=true; FILTER_OUT+=${1},;;
+		--filter)                   shift; IS_FILTER=true; FILTER+=${1}/;;
+		--filter-out)               shift; IS_FILTER_OUT=true; FILTER_OUT+=${1}/;;
 		--print-attributes)         PRINT_ATTRS=true;;
 		--print-models)             PRINT_MODELS=true;;
 		--model)                    shift; COMPOSED_MODEL_USED=true; [ -z "${COMPOSED_MODEL}" ] && COMPOSED_MODEL=${1};;
@@ -341,7 +363,7 @@ ${SILENT} && exec 2> /dev/null
 # Check filters
 ${IS_FILTER} && [ -z "${FILTER}" ] && fail "Error : No filter given\n${FILTER_DESC}"
 ${IS_FILTER_OUT} && [ -z "${FILTER_OUT}" ] && fail "Error : No filter given\n${FILTER_DESC}"
-IFS=','
+IFS='/'
 for filter in ${FILTER}${FILTER_OUT}
 do
 	[[ ! "${filter}" =~ ^.+=.+$ ]] &&\
@@ -460,7 +482,7 @@ fi
 step "### Compose jq filter ###"
 JQ_FILTER=
 
-IFS=','
+IFS='/'
 for filter in ${FILTER}
 do
 	JQ_FILTER+=$(filter ${filter})
