@@ -39,7 +39,7 @@ CSV_FILE=
 BROWSE_FILE=
 SILENT=false
 NO_STEP=false
-PARAMS="?per_page=100&page=1"
+HTTP_PARAM=
 DESCRIPTION="Retrieve gitlab project's content as JSON file. \n \
              	The content is either stored in a file or printed on standard output. \n \
              	The JSON content can also be oppened into a web browser.
@@ -56,6 +56,7 @@ USAGE="Usage: ${0} --id PROJECT_ID [-h|--help] [-a|--auth KEY] [-b|--browse] [-o
 \t\t-u|--url                        : Gitlab server URL ('${URL}' as default value).\n \
 \t\t--no-proxy                      : Don't use proxies, even if the appropriate *_proxy environment variable is defined.\n \
 \t\t--no-step                       : Don't print script steps but keep messages. \n \
+\t\t--http-param                    : Add additional parameters to HTTP request. Only use this option if you know what you do ! \n \
 \n"
 
 DEPENDENCIES="curl"
@@ -76,6 +77,7 @@ while [ ${#} -ne 0 ]; do
 		-u|--url)                   shift; URL=${1};;
 		--no-proxy)                 NO_PROXY=true;;
 		--no-step)                  NO_STEP=true;;
+		--http-param)               shift; HTTP_PARAM=${1};;
 		*)                          log "${USAGE}"; exit 1;;
 	esac
 	shift
@@ -92,6 +94,8 @@ ${SILENT} && exec 2> /dev/null
 	[[ "${OUTPUT}" =~ ^.+\.json$ ]] || OUTPUT=${OUTPUT}.json
 	exec > ${OUTPUT}
 }
+
+[ -z ${HTTP_PARAM} ] || HTTP_PARAM="&${HTTP_PARAM}"
 
 ##########################
 ### Check dependencies ###
@@ -122,8 +126,10 @@ step "### Retrieve project's issues ###"
 CONTENT_FILE=$(mktemp /tmp/gitlab-extracter.XXXXXX.json)
 HEADER_FILE=$(mktemp /tmp/gitlab-extracter.XXXXXX.header)
 
-http_params="?per_page=1&page=1${AUTH}"
+http_params="?per_page=1&page=1${AUTH}${HTTP_PARAM}"
 curl -s -D ${HEADER_FILE} ${URL}/${GITLAB_API}/${ID}/issues${http_params} >> /dev/null
+http_return_code=$(head -n 1 ${HEADER_FILE} | awk '{print $2}')
+grep -E '2[0-9]{2}' > /dev/null <<< ${http_return_code} || { cat ${HEADER_FILE}; fail "Error : Server returned HTTP status code ${http_return_code}"; }
 
 entry_num=$(grep X-Total: ${HEADER_FILE} | grep -oE '[0-9]+')
 [ -z ${entry_num} ] && fail "No issue to retrieve"
@@ -139,7 +145,7 @@ page=1
 
 while [ ! -z "${page}" ]
 do
-	http_params="?per_page=${per_page}&page=${page}${AUTH}"
+	http_params="?per_page=${per_page}&page=${page}${AUTH}${HTTP_PARAM}"
 	curl -s -D ${HEADER_FILE} ${URL}/${GITLAB_API}/${ID}/issues${http_params} >> ${CONTENT_FILE}
 	http_return_code=$(head -n 1 ${HEADER_FILE} | awk '{print $2}')
 	grep -E '2[0-9]{2}' > /dev/null <<< ${http_return_code} || { cat ${HEADER_FILE}; fail "Error : Server returned HTTP status code ${http_return_code}"; }
